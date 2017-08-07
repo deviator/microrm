@@ -74,7 +74,10 @@ void buildInsert(W, T)(ref W buf, T[] arr...)
     {
         import std.traits;
         static if (isFloatingPoint!X)
-            wrt.formattedWrite("%e", x);
+        {
+            if (x == x) wrt.formattedWrite("%e", x);
+            else wrt.formattedWrite("null");
+        }
         else static if (isNumeric!X)
             wrt.formattedWrite("%d", x);
         else wrt.formattedWrite("'%s'", x);
