@@ -5,6 +5,6 @@ __dummy.html
 *.obj
 __test__*__
 libmicrorm.a
-microrm-test-library
+microrm-test-*
 example/example
 example/test.db

@@ -5,3 +5,15 @@ authors "Oleg Butko (deviator)"
 copyright "Copyright © 2017, Oleg Butko"
 license "MIT"
 dependency "d2sqlite3" version="~>0.13.1"
+
+configuration "all-included" {
+    subConfiguration "d2sqlite3" "all-included"
+}
+
+configuration "without-lib" {
+    subConfiguration "d2sqlite3" "without-lib"
+}
+
+configuration "with-lib" {
+    subConfiguration "d2sqlite3" "with-lib"
+}
