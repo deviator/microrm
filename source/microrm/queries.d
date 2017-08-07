@@ -88,7 +88,7 @@ void buildInsert(W, T)(ref W buf, T[] arr...)
     foreach (i, f; tt.tupleof)
     {
         enum name = __traits(identifier, tt.tupleof[i]);
-        static if (name != "id")
+        static if (name != IDNAME)
         {
             buf.formattedWrite(name);
             static if (i+1 != tt.tupleof.length)
@@ -101,7 +101,7 @@ void buildInsert(W, T)(ref W buf, T[] arr...)
         foreach (i, f; v.tupleof)
         {
             enum name = __traits(identifier, v.tupleof[i]);
-            static if (name != "id")
+            static if (name != IDNAME)
             {
                 vconv(buf, f);
                 static if (i+1 != v.tupleof.length)
