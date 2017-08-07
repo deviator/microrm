@@ -26,3 +26,11 @@ auto qDelete(T)(ref Database db) { return Delete!T(&db); }
 
 ///
 auto qCount(T)(ref Database db) { return Count!T(&db); }
+
+///
+auto qLastInsertId(ref Database db)
+{
+    return db.
+        execute("SELECT last_insert_rowid()").
+        front.front.as!ulong;
+}
