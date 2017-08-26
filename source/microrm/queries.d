@@ -66,7 +66,7 @@ unittest
     assert (test.query.data == "SELECT * FROM Foo WHERE text = 'privet' AND ts > '123'");
 }
 
-void buildInsert(W, T)(ref W buf, T[] arr...)
+void buildInsert(W, T)(ref W buf, bool orInsert, T[] arr...)
 {
     assert(arr.length);
 
@@ -83,12 +83,14 @@ void buildInsert(W, T)(ref W buf, T[] arr...)
         else wrt.formattedWrite("'%s'", x);
     }
 
-    buf.formattedWrite("INSERT INTO %s (", tableName!T);
+    buf.formattedWrite("INSERT ");
+    if (orInsert) buf.formattedWrite("OR REPLACE ");
+    buf.formattedWrite("INTO %s (", tableName!T);
     auto tt = arr[0];
     foreach (i, f; tt.tupleof)
     {
         enum name = __traits(identifier, tt.tupleof[i]);
-        static if (name != IDNAME)
+        if (name != IDNAME || orInsert)
         {
             buf.formattedWrite(name);
             static if (i+1 != tt.tupleof.length)
@@ -101,7 +103,7 @@ void buildInsert(W, T)(ref W buf, T[] arr...)
         foreach (i, f; v.tupleof)
         {
             enum name = __traits(identifier, v.tupleof[i]);
-            static if (name != IDNAME)
+            if (name != IDNAME || orInsert)
             {
                 vconv(buf, f);
                 static if (i+1 != v.tupleof.length)
