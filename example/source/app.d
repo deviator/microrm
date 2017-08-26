@@ -42,5 +42,7 @@ void main()
     import std.random : uniform;
     db.qInsert(Bar(0, uniform(0, 10)));
 
+    db.qInsertOrReplace(Foo(0, "hello", cts), Foo(1, "world", cts));
+
     db.qDelete!Foo.where("ts <", cts - cast(ulong)1e8).run;
 }
