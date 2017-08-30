@@ -66,7 +66,19 @@ unittest
     assert (test.query.data == "SELECT * FROM Foo WHERE text = 'privet' AND ts > '123'");
 }
 
-void buildInsert(W, T)(ref W buf, bool orInsert, T[] arr...)
+void buildInsertOrReplace(W, T)(ref W buf, T[] arr...)
+{
+    buf.formattedWrite("INSERT OR REPLACE INTO %s (", tableName!T);
+    buildInsertQ(buf, arr);
+}
+
+void buildInsert(W, T)(ref W buf, T[] arr...)
+{
+    buf.formattedWrite("INSERT INTO %s (", tableName!T);
+    buildInsertQ(buf, arr);
+}
+
+void buildInsertQ(W, T)(ref W buf, T[] arr...)
 {
     assert(arr.length);
 
@@ -83,19 +95,20 @@ void buildInsert(W, T)(ref W buf, bool orInsert, T[] arr...)
         else wrt.formattedWrite("'%s'", x);
     }
 
-    buf.formattedWrite("INSERT ");
-    if (orInsert) buf.formattedWrite("OR REPLACE ");
-    buf.formattedWrite("INTO %s (", tableName!T);
+    bool isInsertId = true;
     auto tt = arr[0];
     foreach (i, f; tt.tupleof)
     {
         enum name = __traits(identifier, tt.tupleof[i]);
-        if (name != IDNAME || orInsert)
+        if (name == IDNAME && f == f.init) 
         {
-            buf.formattedWrite(name);
-            static if (i+1 != tt.tupleof.length)
-                buf.formattedWrite(", ");
+            isInsertId = false;
+            continue;
         }
+
+        buf.formattedWrite(name);
+        static if (i+1 != tt.tupleof.length)
+            buf.formattedWrite(", ");
     }
     buf.formattedWrite(") VALUES (");
     foreach (n, v; arr)
@@ -103,12 +116,12 @@ void buildInsert(W, T)(ref W buf, bool orInsert, T[] arr...)
         foreach (i, f; v.tupleof)
         {
             enum name = __traits(identifier, v.tupleof[i]);
-            if (name != IDNAME || orInsert)
-            {
-                vconv(buf, f);
-                static if (i+1 != v.tupleof.length)
-                    buf.formattedWrite(", ");
-            }
+            if (name == IDNAME && !isInsertId)
+                continue;
+
+            vconv(buf, f);
+            static if (i+1 != v.tupleof.length)
+                buf.formattedWrite(", ");
         }
         if (n+1 != arr.length)
             buf.formattedWrite("), (");

@@ -15,7 +15,7 @@ auto qSelect(T)(ref Database db) { return Select!T(&db); }
 auto qInsert(T)(ref Database db, T[] arr...)
 {
     auto buf = appender!(char[]);
-    buf.buildInsert(false, arr);
+    buf.buildInsert(arr);
     auto q = buf.data.idup;
     debug (microrm) stderr.writeln(q);
     return db.execute(q);
@@ -24,7 +24,7 @@ auto qInsert(T)(ref Database db, T[] arr...)
 auto qInsertOrReplace(T)(ref Database db, T[] arr...)
 {
     auto buf = appender!(char[]);
-    buf.buildInsert(true, arr);
+    buf.buildInsertOrReplace(arr);
     auto q = buf.data.idup;
     debug (microrm) stderr.writeln(q);
     return db.execute(q);
