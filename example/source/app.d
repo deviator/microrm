@@ -37,12 +37,13 @@ void main()
     writeln;
     foreach (v; db.qSelect!Bar.where("value <", 3).run)
         writeln(v);
+
+    db.qDelete!Foo.where("ts <", cts - cast(ulong)1e8).run;
     
-    db.qInsert(Foo(0, "hello", cts), Foo(0, "world", cts));
+    db.qInsert(Foo(0, "hello", cts), Foo(20, "world", cts));
+    db.qInsert(Foo(9210, "hello", cts), Foo(0, "world", cts));
     import std.random : uniform;
     db.qInsert(Bar(0, uniform(0, 10)));
 
-    db.qInsertOrReplace(Foo(0, "hello", cts), Foo(1, "world", cts));
-
-    db.qDelete!Foo.where("ts <", cts - cast(ulong)1e8).run;
+    db.qInsertOrReplace(Foo(1, "hello", cts), Foo(3, "world", cts));
 }
