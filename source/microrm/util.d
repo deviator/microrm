@@ -70,6 +70,12 @@ mixin template whereCondition()
         this.query.formattedWrite(" AND %s %s", field, cmd);
         return this;
     }
+
+    ref limit(int limit)
+    {
+        this.query.formattedWrite(" LIMIT '%s'", limit);
+        return this;
+    }
 }
 
 mixin template baseQueryData(string SQLTempl, size_t BufLen=512)
