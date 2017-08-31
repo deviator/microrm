@@ -21,7 +21,7 @@ struct Select(T)
     private ref orderBy(string[] fields, string orderType)
     {
         assert(orderType == "ASC" || orderType == "DESC");
-        query.formattedWrite(" ORDER BY %(-%s, %) %s", fields, orderType);
+        query.formattedWrite(" ORDER BY %-(%s, %) %s", fields, orderType);
         return this;
     }
 
