@@ -6,6 +6,7 @@ import std.exception : enforce;
 import d2sqlite3;
 
 import microrm.util;
+import microrm.exception;
 
 debug (microrm) import std.stdio : stderr;
 
@@ -38,7 +39,7 @@ struct Select(T)
         query.put(';');
         auto q = query.data.idup;
         debug (microrm) stderr.writeln(q);
-        auto result = (*db).execute(q);
+        auto result = (*db).executeCheck(q);
 
         static T qconv(typeof(result.front) e)
         {
@@ -82,19 +83,6 @@ void buildInsertQ(W, T)(ref W buf, T[] arr...)
 {
     assert(arr.length);
 
-    static void vconv(Y, X)(ref Y wrt, X x)
-    {
-        import std.traits;
-        static if (isFloatingPoint!X)
-        {
-            if (x == x) wrt.formattedWrite("%e", x);
-            else wrt.formattedWrite("null");
-        }
-        else static if (isNumeric!X)
-            wrt.formattedWrite("%d", x);
-        else wrt.formattedWrite("'%s'", x);
-    }
-
     bool isInsertId = true;
     auto tt = arr[0];
     foreach (i, f; tt.tupleof)
@@ -119,7 +107,7 @@ void buildInsertQ(W, T)(ref W buf, T[] arr...)
             if (name == IDNAME && !isInsertId)
                 continue;
 
-            vconv(buf, f);
+            valueToCol(buf, f);
             static if (i+1 != v.tupleof.length)
                 buf.formattedWrite(", ");
         }
@@ -161,7 +149,7 @@ struct Delete(T)
         query.put(';');
         auto q = query.data.idup;
         debug (microrm) stderr.writeln(q);
-        return (*db).execute(q);
+        return (*db).executeCheck(q);
     }
 }
 
@@ -189,7 +177,7 @@ struct Count(T)
         enforce(db, "database is null");
         auto q = query.data.idup;
         debug (microrm) stderr.writeln(q);
-        return (*db).execute(q).front.front.as!size_t;
+        return (*db).executeCheck(q).front.front.as!size_t;
     }
 }
 

@@ -3,6 +3,7 @@ module microrm.api;
 
 import std.array : appender;
 import microrm.queries;
+import microrm.exception;
 
 import d2sqlite3;
 
@@ -18,7 +19,7 @@ auto qInsert(T)(ref Database db, T[] arr...)
     buf.buildInsert(arr);
     auto q = buf.data.idup;
     debug (microrm) stderr.writeln(q);
-    return db.execute(q);
+    return db.executeCheck(q);
 }
 
 auto qInsertOrReplace(T)(ref Database db, T[] arr...)
@@ -27,7 +28,7 @@ auto qInsertOrReplace(T)(ref Database db, T[] arr...)
     buf.buildInsertOrReplace(arr);
     auto q = buf.data.idup;
     debug (microrm) stderr.writeln(q);
-    return db.execute(q);
+    return db.executeCheck(q);
 }
 
 ///
@@ -40,6 +41,6 @@ auto qCount(T)(ref Database db) { return Count!T(&db); }
 auto qLastInsertId(ref Database db)
 {
     return db.
-        execute("SELECT last_insert_rowid()").
+        executeCheck("SELECT last_insert_rowid()").
         front.front.as!ulong;
 }

@@ -1,5 +1,8 @@
 module microrm.util;
 
+import std.traits;
+import std.format : formattedWrite;
+
 enum IDNAME = "id";
 
 string tableName(T)()
@@ -9,7 +12,6 @@ string tableName(T)()
 
 void fieldToCol(string name, T, Writer)(Writer w)
 {
-    import std.format : formattedWrite;
     static if (name == IDNAME)
     {
         w.put(IDNAME);
@@ -19,26 +21,44 @@ void fieldToCol(string name, T, Writer)(Writer w)
     {
         enum NOTNULL = " NOT NULL";
         string type, param;
-        static if (is(T : ulong))
+        static if (isFloatingPoint!T) type = "REAL";
+        else static if (isNumeric!T || is(T == bool))
         {
             type = "INTEGER";
             param = NOTNULL;
         }
-        else static if (is(T : string))
-        {
-            // TODO UDAs for VARCHAR
-            type = "TEXT";
-            param = "";
-        }
-        else static if (is(T : float))
-        {
-            type = "REAL";
-            param = "";
-        }
+        else static if (isSomeString!T) type = "TEXT";
+        else static if (isDynamicArray!T) type = "BLOB";
         else static assert(0, "unsupported type: " ~ T.stringof);
 
         formattedWrite(w, "%s %s%s", name, type, param);
     }
+}
+
+void valueToCol(T, Writer)(Writer w, T x)
+{
+    static if (is(T == bool))
+        w.formattedWrite("%d", cast(int)x);
+    else static if (isFloatingPoint!T)
+    {
+        if (x == x) w.formattedWrite("%e", x);
+        else w.formattedWrite("null");
+    }
+    else static if (isNumeric!T)
+        w.formattedWrite("%d", x);
+    else static if (isSomeString!T)
+        w.formattedWrite("'%s'", x);
+    else static if (isDynamicArray!T)
+    {
+        if (x.length == 0) w.formattedWrite("null");
+        else
+        {
+            static if (is(T == ubyte[])) auto dd = x;
+            else auto dd = cast(ubyte[])(cast(void[])x);
+            w.formattedWrite("x'%-(%02x%)'", dd);
+        }
+    }
+    else static assert(0, "unsupported type: " ~ T.stringof);
 }
 
 mixin template whereCondition()
