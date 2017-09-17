@@ -1,21 +1,32 @@
 module microrm.util;
 
 import std.traits;
-import std.format : formattedWrite;
+import std.format : format, formattedWrite;
 
 enum IDNAME = "id";
+enum SEPARATOR = ".";
 
 string tableName(T)()
 {
     return T.stringof;
 }
 
-void fieldToCol(string name, T, Writer)(Writer w)
+string[] fieldToCol(string name, T)(string prefix="")
 {
     static if (name == IDNAME)
+        return ["'" ~ IDNAME ~ "' INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL"];
+    else static if (is(T == struct))
     {
-        w.put(IDNAME);
-        w.put(" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL");
+        T t;
+        string[] ret;
+        foreach (i, f; t.tupleof)
+        {
+            enum fname = __traits(identifier, t.tupleof[i]);
+            alias F = typeof(f);
+            auto np = prefix ~ (name.length ? name~SEPARATOR : "");
+            ret ~= fieldToCol!(fname, F)(np);
+        }
+        return ret;
     }
     else
     {
@@ -31,13 +42,51 @@ void fieldToCol(string name, T, Writer)(Writer w)
         else static if (isDynamicArray!T) type = "BLOB";
         else static assert(0, "unsupported type: " ~ T.stringof);
 
-        formattedWrite(w, "%s %s%s", name, type, param);
+        return [format("'%s%s' %s%s", prefix, name, type, param)];
     }
 }
 
-void valueToCol(T, Writer)(Writer w, T x)
+unittest
 {
-    static if (is(T == bool))
+    struct Foo
+    {
+        float xx;
+        string yy;
+        int zz;
+    }
+
+    struct Bar
+    {
+        ulong id;
+        float abc;
+        Foo foo;
+        string baz;
+        ubyte[] data;
+    }
+
+    assert (fieldToCol!("", Bar)() ==
+    ["'id' INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL",
+     "'abc' REAL",
+     "'foo.xx' REAL",
+     "'foo.yy' TEXT",
+     "'foo.zz' INTEGER NOT NULL",
+     "'baz' TEXT",
+     "'data' BLOB"
+     ]);
+}
+
+void valueToCol(T, Writer)(ref Writer w, T x)
+{
+    static if(is(T == struct))
+    {
+        foreach (i, v; x.tupleof)
+        {
+            valueToCol(w, v);
+            static if (i+1 != x.tupleof.length)
+                w.put(", ");
+        }
+    }
+    else static if (is(T == bool))
         w.formattedWrite("%d", cast(int)x);
     else static if (isFloatingPoint!T)
     {
@@ -59,6 +108,43 @@ void valueToCol(T, Writer)(Writer w, T x)
         }
     }
     else static assert(0, "unsupported type: " ~ T.stringof);
+}
+
+unittest
+{
+    import std.array : Appender;
+    Appender!(char[]) buf;
+    valueToCol(buf, 3);
+    assert(buf.data == "3");
+    buf.clear;
+    valueToCol(buf, "hello");
+    assert(buf.data == "'hello'");
+    buf.clear;
+}
+
+unittest
+{
+    struct Foo
+    {
+        int xx;
+        string yy;
+    }
+
+    struct Bar
+    {
+        ulong id;
+        int abc;
+        string baz;
+        Foo foo;
+    }
+
+    Bar val = {id: 12, abc: 32, baz: "hello",
+                foo: {xx: 45, yy: "ok"}};
+
+    import std.array : Appender;
+    Appender!(char[]) buf;
+    valueToCol(buf, val);
+    assert(buf.data == "12, 32, 'hello', 45, 'ok'");
 }
 
 mixin template whereCondition()
@@ -122,4 +208,42 @@ mixin template baseQueryData(string SQLTempl, size_t BufLen=512)
         query.clear();
         query.put(initialSQL);
     }
+}
+
+string[] fieldNames(string name, T)(string prefix="")
+{
+    static if (is(T == struct))
+    {
+        T t;
+        string[] ret;
+        foreach (i, f; t.tupleof)
+        {
+            enum fname = __traits(identifier, t.tupleof[i]);
+            alias F = typeof(f);
+            auto np = prefix ~ (name.length ? name~SEPARATOR : "");
+            ret ~= fieldNames!(fname, F)(np);
+        }
+        return ret;
+    }
+    else return ["'" ~ prefix ~ name ~ "'"];
+}
+
+unittest
+{
+    struct Foo
+    {
+        float xx;
+        string yy;
+    }
+
+    struct Bar
+    {
+        ulong id;
+        float abc;
+        Foo foo;
+        string baz;
+    }
+
+    assert (fieldNames!("", Bar) ==
+            ["'id'", "'abc'", "'foo.xx'", "'foo.yy'", "'baz'"]);
 }

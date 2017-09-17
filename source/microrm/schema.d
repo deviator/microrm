@@ -11,22 +11,16 @@ import microrm.util;
 auto buildSchema(Types...)()
 {
     import std.array : appender;
+    import std.algorithm : joiner;
     auto ret = appender!string;
     foreach (T; Types)
     {
-        T t;
         static if (is(T == struct))
         {
             ret.put("CREATE TABLE IF NOT EXISTS ");
             ret.put(tableName!T);
             ret.put(" (\n");
-            foreach (i, f; t.tupleof)
-            {
-                fieldToCol!(__traits(identifier, t.tupleof[i]),
-                          typeof(f))(ret);
-                static if (i != t.tupleof.length-1)
-                    ret.put(",\n");
-            }
+            ret.put(fieldToCol!("",T)().joiner(",\n"));
             ret.put(");\n");
         }
         else static assert(0, "not supported non-struct type");
@@ -52,12 +46,12 @@ unittest
 
     assert(buildSchema!(Foo, Bar) ==
 `CREATE TABLE IF NOT EXISTS Foo (
-id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-value REAL,
-ts INTEGER NOT NULL);
+'id' INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+'value' REAL,
+'ts' INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS Bar (
-id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-text TEXT,
-ts INTEGER NOT NULL);
+'id' INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+'text' TEXT,
+'ts' INTEGER NOT NULL);
 `);
 }

@@ -2,6 +2,8 @@ module microrm.queries;
 
 import std.format : formattedWrite;
 import std.exception : enforce;
+import std.algorithm : joiner;
+import std.string : join;
 
 import d2sqlite3;
 
@@ -22,7 +24,10 @@ struct Select(T)
     private ref orderBy(string[] fields, string orderType)
     {
         assert(orderType == "ASC" || orderType == "DESC");
-        query.formattedWrite(" ORDER BY %-(%s, %) %s", fields, orderType);
+        query.put(" ORDER BY ");
+        query.put(fields.joiner(", "));
+        query.put(" ");
+        query.put(orderType);
         return this;
     }
 
@@ -43,9 +48,17 @@ struct Select(T)
 
         static T qconv(typeof(result.front) e)
         {
+            enum names = fieldNames!("", T)();
             T ret;
-            foreach (i, ref f; ret.tupleof)
-                f = e[__traits(identifier, ret.tupleof[i])].as!(typeof(f));
+            static string rr()
+            {
+                string[] res;
+                foreach (i, a; fieldNames!("", T)())
+                    res ~= format("ret.%1$s = e[%2$d].as!(typeof(ret.%1$s));",
+                                    a[1..$-1], i);
+                return res.join("\n");
+            }
+            mixin(rr());
             return ret;
         }
 
@@ -69,34 +82,45 @@ unittest
 
 void buildInsertOrReplace(W, T)(ref W buf, T[] arr...)
 {
-    buf.formattedWrite("INSERT OR REPLACE INTO %s (", tableName!T);
+    if (arr.length == 0) return;
+    buf.put("INSERT OR REPLACE INTO ");
+    buf.put(tableName!T);
+    buf.put(" (");
     buildInsertQ(buf, arr);
 }
 
 void buildInsert(W, T)(ref W buf, T[] arr...)
 {
-    buf.formattedWrite("INSERT INTO %s (", tableName!T);
+    if (arr.length == 0) return;
+    buf.put("INSERT INTO ");
+    buf.put(tableName!T);
+    buf.put(" (");
     buildInsertQ(buf, arr);
 }
 
 void buildInsertQ(W, T)(ref W buf, T[] arr...)
 {
-    assert(arr.length);
-
     bool isInsertId = true;
     auto tt = arr[0];
     foreach (i, f; tt.tupleof)
     {
         enum name = __traits(identifier, tt.tupleof[i]);
-        if (name == IDNAME && f == f.init) 
+
+        static if (is(typeof(f)==struct))
+            enum tmp = fieldNames!(name, typeof(f))().join(", ");
+        else
         {
-            isInsertId = false;
-            continue;
+            if (name == IDNAME && f == f.init) 
+            {
+                isInsertId = false;
+                continue;
+            }
+            enum tmp = "'" ~ name ~ "'";
         }
 
-        buf.formattedWrite(name);
+        buf.put(tmp);
         static if (i+1 != tt.tupleof.length)
-            buf.formattedWrite(", ");
+            buf.put(", ");
     }
     buf.formattedWrite(") VALUES (");
     foreach (n, v; arr)
@@ -104,17 +128,18 @@ void buildInsertQ(W, T)(ref W buf, T[] arr...)
         foreach (i, f; v.tupleof)
         {
             enum name = __traits(identifier, v.tupleof[i]);
+
             if (name == IDNAME && !isInsertId)
                 continue;
 
             valueToCol(buf, f);
             static if (i+1 != v.tupleof.length)
-                buf.formattedWrite(", ");
+                buf.put(", ");
         }
         if (n+1 != arr.length)
-            buf.formattedWrite("), (");
+            buf.put("), (");
     }
-    buf.formattedWrite(");");
+    buf.put(");");
 }
 
 unittest
@@ -133,8 +158,8 @@ unittest
     buf.buildInsert(Foo(1, "hello", 3.14, 12), Foo(2, "world", 2.7, 42));
 
     auto q = buf.data;
-    assert(q == "INSERT INTO Foo (text, val, ts) VALUES "~
-                "('hello', 3.140000e+00, 12), ('world', 2.700000e+00, 42);");
+    assert(q == "INSERT INTO Foo ('id', 'text', 'val', 'ts') VALUES "~
+                "(1, 'hello', 3.140000e+00, 12), (2, 'world', 2.700000e+00, 42);");
 }
 
 struct Delete(T)
