@@ -1,6 +1,5 @@
 module microrm.queries;
 
-import std.format : formattedWrite;
 import std.exception : enforce;
 import std.algorithm : joiner;
 import std.string : join;
@@ -80,66 +79,62 @@ unittest
     assert (test.query.data == "SELECT * FROM Foo WHERE text = 'privet' AND ts > '123'");
 }
 
-void buildInsertOrReplace(W, T)(ref W buf, T[] arr...)
+void buildInsertOrReplace(T, W)(ref W buf, bool replace, size_t valCount=1)
 {
-    if (arr.length == 0) return;
-    buf.put("INSERT OR REPLACE INTO ");
+    if (!replace) buf.put("INSERT INTO ");
+    else buf.put("INSERT OR REPLACE INTO ");
     buf.put(tableName!T);
     buf.put(" (");
-    buildInsertQ(buf, arr);
-}
 
-void buildInsert(W, T)(ref W buf, T[] arr...)
-{
-    if (arr.length == 0) return;
-    buf.put("INSERT INTO ");
-    buf.put(tableName!T);
-    buf.put(" (");
-    buildInsertQ(buf, arr);
-}
-
-void buildInsertQ(W, T)(ref W buf, T[] arr...)
-{
     bool isInsertId = true;
-    auto tt = arr[0];
+
+    auto tt = T.init;
     foreach (i, f; tt.tupleof)
     {
+        alias F = typeof(f);
         enum name = __traits(identifier, tt.tupleof[i]);
 
-        static if (is(typeof(f)==struct))
-            enum tmp = fieldNames!(name, typeof(f))().join(", ");
+        static if (is(F==struct))
+            enum tmp = fieldNames!(name, F)().join(",");
         else
         {
-            if (name == IDNAME && f == f.init) 
-            {
-                isInsertId = false;
-                continue;
-            }
+            if (name == IDNAME && !replace) continue;
             enum tmp = "'" ~ name ~ "'";
         }
 
         buf.put(tmp);
         static if (i+1 != tt.tupleof.length)
-            buf.put(", ");
+            buf.put(",");
     }
-    buf.formattedWrite(") VALUES (");
-    foreach (n, v; arr)
+    buf.put(") VALUES (");
+
+    foreach (i, f; tt.tupleof)
     {
-        foreach (i, f; v.tupleof)
+        enum name = __traits(identifier, tt.tupleof[i]);
+        alias F = typeof(f);
+        static if (is(F==struct)) buf.fmtValues!F;
+        else
         {
-            enum name = __traits(identifier, v.tupleof[i]);
-
-            if (name == IDNAME && !isInsertId)
-                continue;
-
-            valueToCol(buf, f);
-            static if (i+1 != v.tupleof.length)
-                buf.put(", ");
+            if (name == IDNAME && !replace) continue;
+            buf.put("?");
         }
-        if (n+1 != arr.length)
-            buf.put("), (");
+        static if (i+1 != tt.tupleof.length)
+            buf.put(",");
     }
     buf.put(");");
+}
+
+void fmtValues(T, W)(ref W buf)
+{
+    auto tt = T.init;
+    foreach (i, f; tt.tupleof)
+    {
+        alias F = typeof(f);
+        static if (is(F==struct)) buf.fmtValues!F;
+        else buf.put("?");
+        static if (i+1 != tt.tupleof.length)
+            buf.put(",");
+    }
 }
 
 unittest
@@ -155,11 +150,68 @@ unittest
     import std.array : appender;
     auto buf = appender!(char[]);
 
-    buf.buildInsert(Foo(1, "hello", 3.14, 12), Foo(2, "world", 2.7, 42));
-
+    buf.buildInsertOrReplace!Foo(true);
     auto q = buf.data;
-    assert(q == "INSERT INTO Foo ('id', 'text', 'val', 'ts') VALUES "~
-                "(1, 'hello', 3.140000e+00, 12), (2, 'world', 2.700000e+00, 42);");
+    assert(q == "INSERT OR REPLACE INTO Foo "~
+                "('id','text','val','ts') VALUES "~
+                "(?,?,?,?);");
+    buf.clear();
+    buf.buildInsertOrReplace!Foo(false);
+    q = buf.data;
+    assert(q == "INSERT INTO Foo "~
+                "('text','val','ts') VALUES "~
+                "(?,?,?);");
+}
+
+unittest
+{
+    static struct Foo
+    {
+        ulong id;
+        string text;
+        float val;
+        ulong ts;
+    }
+
+    static struct Bar
+    {
+        ulong id;
+        float value;
+        Foo foo;
+    }
+
+    import std.array : appender;
+    auto buf = appender!(char[]);
+
+    buf.buildInsertOrReplace!Bar(true);
+    auto q = buf.data;
+    assert(q == "INSERT OR REPLACE INTO Bar "~
+                "('id','value','foo.id','foo.text','foo.val','foo.ts') VALUES "~
+                "(?,?,?,?,?,?);");
+    buf.clear();
+    buf.buildInsertOrReplace!Bar(false);
+    q = buf.data;
+    assert(q == "INSERT INTO Bar "~
+                "('value','foo.id','foo.text','foo.val','foo.ts') VALUES "~
+                "(?,?,?,?,?);");
+}
+
+unittest
+{
+    struct Foo { string text; float val; ulong ts; }
+    struct Bar { float v; Foo foo; }
+    struct Baz { ulong id; float v; Bar xyz; float w; }
+    
+
+    import std.array : appender;
+    auto buf = appender!(char[]);
+
+    buf.buildInsertOrReplace!Baz(true);
+    auto q = buf.data;
+    assert(q == "INSERT OR REPLACE INTO Baz "~
+                "('id','v','xyz.v',"~
+                "'xyz.foo.text','xyz.foo.val','xyz.foo.ts','w') VALUES "~
+                "(?,?,?,?,"~"?,?,?);");
 }
 
 struct Delete(T)

@@ -48,10 +48,13 @@ string[] fieldToCol(string name, T)(string prefix="")
 
 unittest
 {
+    struct Baz { string a, b; }
+
     struct Foo
     {
         float xx;
         string yy;
+        Baz baz;
         int zz;
     }
 
@@ -69,6 +72,8 @@ unittest
      "'abc' REAL",
      "'foo.xx' REAL",
      "'foo.yy' TEXT",
+     "'foo.baz.a' TEXT",
+     "'foo.baz.b' TEXT",
      "'foo.zz' INTEGER NOT NULL",
      "'baz' TEXT",
      "'data' BLOB"
@@ -77,34 +82,43 @@ unittest
 
 void valueToCol(T, Writer)(ref Writer w, T x)
 {
+    void fmtwrt(string fmt, T val)
+    {
+        // LDC, WTF? https://github.com/ldc-developers/ldc/issues/2355
+        version (LDC) w.put(format(fmt, val));
+        else w.formattedWrite(fmt, val);
+    }
+
     static if(is(T == struct))
     {
         foreach (i, v; x.tupleof)
         {
             valueToCol(w, v);
             static if (i+1 != x.tupleof.length)
-                w.put(", ");
+                w.put(",");
         }
     }
-    else static if (is(T == bool))
-        w.formattedWrite("%d", cast(int)x);
+    else static if (is(T == bool)) fmtwrt("%d", cast(int)x);
     else static if (isFloatingPoint!T)
     {
-        if (x == x) w.formattedWrite("%e", x);
-        else w.formattedWrite("null");
+        if (x == x) fmtwrt("%e", x);
+        else w.put("null");
     }
-    else static if (isNumeric!T)
-        w.formattedWrite("%d", x);
+    else static if (isNumeric!T) fmtwrt("%d", x);
     else static if (isSomeString!T)
-        w.formattedWrite("'%s'", x);
+    {
+        w.put('\'');
+        w.put(x);
+        w.put('\'');
+    }
     else static if (isDynamicArray!T)
     {
-        if (x.length == 0) w.formattedWrite("null");
+        if (x.length == 0) w.put("null");
         else
         {
             static if (is(T == ubyte[])) auto dd = x;
             else auto dd = cast(ubyte[])(cast(void[])x);
-            w.formattedWrite("x'%-(%02x%)'", dd);
+            fmtwrt("x'%-(%02x%)'", dd);
         }
     }
     else static assert(0, "unsupported type: " ~ T.stringof);
@@ -144,42 +158,62 @@ unittest
     import std.array : Appender;
     Appender!(char[]) buf;
     valueToCol(buf, val);
-    assert(buf.data == "12, 32, 'hello', 45, 'ok'");
+    assert(buf.data == "12,32,'hello',45,'ok'");
 }
 
 mixin template whereCondition()
 {
     import std.format : formattedWrite;
+    import std.conv : text;
     import std.range : isOutputRange;
     static assert(isOutputRange!(typeof(this.query), char));
 
     ref where(V)(string field, V val)
     {
-        this.query.formattedWrite(" WHERE %s '%s'", field, val);
+        query.put(" WHERE ");
+        query.put(field);
+        query.put(" '");
+        version (LDC) query.put(text(val));
+        else query.formattedWrite("%s", val);
+        query.put("'");
         return this;
     }
 
     ref whereQ(string field, string cmd)
     {
-        this.query.formattedWrite(" WHERE %s %s", field, cmd);
+        query.put(" WHERE ");
+        query.put(field);
+        query.put(" ");
+        query.put(cmd);
         return this;
     }
 
     ref and(V)(string field, V val)
     {
-        this.query.formattedWrite(" AND %s '%s'", field, val);
+        query.put(" AND ");
+        query.put(field);
+        query.put(" '");
+        version (LDC) query.put(text(val));
+        else query.formattedWrite("%s", val);
+        query.put("'");
         return this;
     }
 
     ref andQ(string field, string cmd)
     {
-        this.query.formattedWrite(" AND %s %s", field, cmd);
+        query.put(" AND ");
+        query.put(field);
+        query.put(" ");
+        query.put(cmd);
         return this;
     }
 
     ref limit(int limit)
     {
-        this.query.formattedWrite(" LIMIT '%s'", limit);
+        query.put(" LIMIT '");
+        version (LDC) query.put(text(limit));
+        else query.formattedWrite("%s", limit);
+        query.put("'");
         return this;
     }
 }
@@ -232,6 +266,7 @@ unittest
 {
     struct Foo
     {
+        ulong id;
         float xx;
         string yy;
     }
@@ -245,5 +280,6 @@ unittest
     }
 
     assert (fieldNames!("", Bar) ==
-            ["'id'", "'abc'", "'foo.xx'", "'foo.yy'", "'baz'"]);
+            ["'id'", "'abc'", "'foo.id'",
+             "'foo.xx'", "'foo.yy'", "'baz'"]);
 }
