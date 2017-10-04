@@ -108,18 +108,21 @@ void buildInsertOrReplace(T, W)(ref W buf, bool replace, size_t valCount=1)
     }
     buf.put(") VALUES (");
 
-    foreach (i, f; tt.tupleof)
+    foreach (n; 0 .. valCount)
     {
-        enum name = __traits(identifier, tt.tupleof[i]);
-        alias F = typeof(f);
-        static if (is(F==struct)) buf.fmtValues!F;
-        else
+        foreach (i, f; tt.tupleof)
         {
-            if (name == IDNAME && !replace) continue;
-            buf.put("?");
+            enum name = __traits(identifier, tt.tupleof[i]);
+            alias F = typeof(f);
+            static if (is(F==struct)) buf.fmtValues!F;
+            else
+            {
+                if (name == IDNAME && !replace) continue;
+                buf.put("?");
+            }
+            static if (i+1 != tt.tupleof.length) buf.put(",");
         }
-        static if (i+1 != tt.tupleof.length)
-            buf.put(",");
+        if (n+1 != valCount) buf.put("),(");
     }
     buf.put(");");
 }
@@ -194,6 +197,12 @@ unittest
     assert(q == "INSERT INTO Bar "~
                 "('value','foo.id','foo.text','foo.val','foo.ts') VALUES "~
                 "(?,?,?,?,?);");
+    buf.clear();
+    buf.buildInsertOrReplace!Bar(false, 3);
+    q = buf.data;
+    assert(q == "INSERT INTO Bar "~
+                "('value','foo.id','foo.text','foo.val','foo.ts') VALUES "~
+                "(?,?,?,?,?),(?,?,?,?,?),(?,?,?,?,?);");
 }
 
 unittest

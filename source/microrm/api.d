@@ -34,24 +34,30 @@ class MDatabase
     auto count(T)() @property { return Count!T(&db); }
 
     ///
-    void insert(T)(T[] arr...) if (!isInputRange!T)
-    { procInsert(false, arr); }
+    void insert(bool all=false, T)(T[] arr...) if (!isInputRange!T)
+    { procInsert!all(false, arr); }
     ///
-    void insertOrReplace(T)(T[] arr...) if (!isInputRange!T)
-    { procInsert(true, arr); }
+    void insertOrReplace(bool all=false, T)(T[] arr...) if (!isInputRange!T)
+    { procInsert!all(true, arr); }
 
     ///
-    void insert(R)(R rng) if (isInputRange!R)
-    { procInsert(false, rng); }
+    void insert(bool all=false, R)(R rng)
+        if (isInputRange!R && ((all && hasLength!R) || !all))
+    { procInsert!all(false, rng); }
     ///
-    void insertOrReplace(R)(R rng) if (isInputRange!R)
-    { procInsert(true, rng); }
+    void insertOrReplace(bool all=false, R)(R rng)
+        if (isInputRange!R && ((all && hasLength!R) || !all))
+    { procInsert!all(true, rng); }
 
-    private auto procInsert(R)(bool replace, R rng)
+    private auto procInsert(bool all=false, R)(bool replace, R rng)
+        if ((all && hasLength!R) || !all)
     {
         buf.clear;
         alias T = ElementType!R;
-        buf.buildInsertOrReplace!T(replace);
+        static if (all)
+            buf.buildInsertOrReplace!T(replace, rng.length);
+        else
+            buf.buildInsertOrReplace!T(replace);
 
         auto sql = buf.data.idup;
 
@@ -65,12 +71,17 @@ class MDatabase
         }
         else auto stmt = db.prepare(sql);
 
-        import std.stdio;
         int n;
-        foreach (v; rng)
+        static if (all)
+        {
+            foreach (v; rng)
+                bindStruct(stmt, v, replace, n);
+            stmt.execute();
+            stmt.reset();
+        }
+        else foreach (v; rng)
         {
             n = 0;
-            //stmt.clearBindings();
             bindStruct(stmt, v, replace, n);
             stmt.execute();
             stmt.reset();
@@ -112,15 +123,20 @@ class MDatabase
     }
 }
 
-unittest
+version (unittest)
 {
     import microrm.schema;
 
-    import std.conv : text;
+    import std.conv : text, to;
     import std.range;
     import std.algorithm;
+    import std.datetime;
     import std.array;
+    import std.stdio;
+}
 
+unittest
+{
     struct One
     {
         ulong id;
@@ -140,22 +156,47 @@ unittest
     assert(db.lastInsertId == ones[$-1].id);
     db.del!One.run;
     assert(db.count!One.run == 0);
-    db.insertOrReplace(iota(0,10).map!(i=>One((i+1)*100,"hello" ~ text(i))));
+    db.insertOrReplace(iota(0,499).map!(i=>One((i+1)*100,"hello" ~ text(i))));
     assert(ones.length == 10);
     ones = db.select!One.run.array;
+    assert(ones.length == 499);
     assert(ones.all!(a=>a.id >= 100));
     assert(db.lastInsertId == ones[$-1].id);
 }
 
 unittest
 {
-    import microrm.schema;
+    struct One
+    {
+        ulong id;
+        string text;
+    }
 
-    import std.conv : text;
-    import std.range;
-    import std.algorithm;
-    import std.array;
+    auto db = new MDatabase(":memory:");
+    db.run(buildSchema!One);
 
+    assert(db.count!One.run == 0);
+    db.insert!true(iota(0,10).map!(i=>One(i*100,"hello" ~ text(i))));
+    assert(db.count!One.run == 10);
+
+    auto ones = db.select!One.run.array;
+    assert(ones.length == 10);
+    assert(ones.all!(a=>a.id < 100));
+    assert(db.lastInsertId == ones[$-1].id);
+    db.del!One.run;
+    assert(db.count!One.run == 0);
+    import std.datetime;
+    import std.conv : to;
+    db.insertOrReplace!true(iota(0,499).map!(i=>One((i+1)*100,"hello" ~ text(i))));
+    assert(ones.length == 10);
+    ones = db.select!One.run.array;
+    assert(ones.length == 499);
+    assert(ones.all!(a=>a.id >= 100));
+    assert(db.lastInsertId == ones[$-1].id);
+}
+
+unittest
+{
     struct Limit { int min, max; }
     struct Limits { Limit volt, curr; }
     struct Settings
