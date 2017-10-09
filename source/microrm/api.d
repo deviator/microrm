@@ -14,6 +14,7 @@ debug (microrm) import std.stdio : stderr;
 
 //version = microrm_cache_stmt;
 
+///
 class MDatabase
 {
     version (microrm_cache_stmt)
@@ -21,9 +22,12 @@ class MDatabase
 
     private Appender!(char[]) buf;
 
+    ///
     Database db;
+    ///
     alias db this;
 
+    ///
     this(string path, int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE)
     { db = Database(path, flags); }
 

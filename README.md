@@ -2,29 +2,24 @@
 
 Very simple ORM with single backend (SQLite3).
 
-This methods returns struct instances
-```
-auto qSelect(T)(ref Database db);
-auto qDelete(T)(ref Database db);
-auto qCount(T)(ref Database db);
-```
-They structs have methods
-```
-ref Self where(V)(string field, V val);
-ref Self whereQ(string field, string cmd);
-ref Self and(V)(string field, V val);
-ref Self andQ(string field, string cmd)
-```
-there Self is type of structure, and method
-```
-auto run() @property;
-```
-for each own types.
+```d
+struct Foo { ulong id; string text; ulong ts; }
+struct Baz { string one; double two; }
+struct Bar { ulong id; float value; Baz baz; }
 
-This method execute immediately
+enum schema = buildSchema!(Foo, Bar);
 
-```
-auto qInsert(T)(ref Database db, T[] arr...);
+auto db = new MDatabase("test.db");
+db.run(schema);
+
+writeln("Bar count: ", db.count!Bar.run);
+
+db.del!Foo.where("ts <", cts - cast(ulong)1e8).run;
+
+db.insert(Foo(0, "hello", cts), Foo(20, "world", cts));
+db.insert(Foo(0, "hello", cts), Foo(0, "world", cts));
+
+db.insertOrReplace(Foo(1, "hello", cts), Foo(3, "world", cts));
 ```
 
 See example/source/app.d
