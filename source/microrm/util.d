@@ -218,22 +218,26 @@ mixin template whereCondition()
     }
 }
 
-mixin template baseQueryData(string SQLTempl, size_t BufLen=512)
+mixin template baseQueryData(string SQLTempl)
 {
     import std.array : Appender, appender;
     import std.format : formattedWrite, format;
 
     enum initialSQL = format(SQLTempl, tableName!T);
 
+    alias Buffer = Appender!(char[]);
+
     Database* db;
-    Appender!(char[]) query;
+    Buffer* buf;
 
     @disable this();
 
-    this(Database* db)
+    private ref Buffer query() @property { return (*buf); }
+
+    this(Database* db, Buffer* buf)
     {
         this.db = db;
-        query.reserve(BufLen);
+        this.buf = buf;
         query.put(initialSQL);
     }
 

@@ -28,14 +28,26 @@ class MDatabase
     alias db this;
 
     ///
-    this(string path, int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE)
-    { db = Database(path, flags); }
+    this(string path, int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+         size_t queryBufferInitReserve=512)
+    {
+        db = Database(path, flags);
+        buf.reserve(queryBufferInitReserve);
+    }
 
     ///
-    auto select(T)() @property { return Select!T(&db); }
+    auto select(T)() @property
+    {
+        buf.clear();
+        return Select!T(&db, &buf);
+    }
 
     ///
-    auto count(T)() @property { return Count!T(&db); }
+    auto count(T)() @property
+    {
+        buf.clear();
+        return Count!T(&db, &buf);
+    }
 
     ///
     void insert(bool all=false, T)(T[] arr...) if (!isInputRange!T)
@@ -98,7 +110,11 @@ class MDatabase
     }
 
     ///
-    auto del(T)() { return Delete!T(&db); }
+    auto del(T)()
+    {
+        buf.clear();
+        return Delete!T(&db, &buf);
+    }
 
     ///
     auto lastInsertId() @property

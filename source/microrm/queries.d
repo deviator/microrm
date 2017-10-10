@@ -17,7 +17,7 @@ struct Select(T)
 {
     import std.range : InputRange;
 
-    mixin baseQueryData!("SELECT * FROM %s", BASEQUERYLENGTH);
+    mixin baseQueryData!("SELECT * FROM %s");
     mixin whereCondition;
 
     private ref orderBy(string[] fields, string orderType)
@@ -74,7 +74,10 @@ unittest
         ulong ts;
     }
 
-    auto test = Select!Foo(null);
+    import std.array : Appender;
+    Appender!(char[]) buf;
+
+    auto test = Select!Foo(null, &buf);
     test.where("text =", "privet").and("ts >", 123);
     assert (test.query.data == "SELECT * FROM Foo WHERE text = 'privet' AND ts > '123'");
 }
@@ -225,7 +228,7 @@ unittest
 
 struct Delete(T)
 {
-    mixin baseQueryData!("DELETE FROM %s", BASEQUERYLENGTH);
+    mixin baseQueryData!("DELETE FROM %s");
     mixin whereCondition;
 
     auto run() @property
@@ -248,14 +251,17 @@ unittest
         ulong ts;
     }
 
-    auto test = Delete!Foo(null);
+    import std.array : Appender;
+    Appender!(char[]) buf;
+
+    auto test = Delete!Foo(null, &buf);
     test.where("text =", "privet").and("ts >", 123);
     assert (test.query.data == "DELETE FROM Foo WHERE text = 'privet' AND ts > '123'");
 }
 
 struct Count(T)
 {
-    mixin baseQueryData!("SELECT Count(*) FROM %s", BASEQUERYLENGTH);
+    mixin baseQueryData!("SELECT Count(*) FROM %s");
     mixin whereCondition;
 
     size_t run() @property
@@ -275,8 +281,11 @@ unittest
         string text;
         ulong ts;
     }
+    
+    import std.array : Appender;
+    Appender!(char[]) buf;
 
-    auto test = Count!Foo(null);
+    auto test = Count!Foo(null, &buf);
     test.where("text =", "privet").and("ts >", 123);
     assert (test.query.data == "SELECT Count(*) FROM Foo WHERE text = 'privet' AND ts > '123'");
 }
