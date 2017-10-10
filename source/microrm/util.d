@@ -225,7 +225,7 @@ mixin template baseQueryData(string SQLTempl)
 
     enum initialSQL = format(SQLTempl, tableName!T);
 
-    alias Buffer = Appender!(char[]);
+    alias Buffer = BUF;
 
     Database* db;
     Buffer* buf;

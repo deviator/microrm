@@ -28,7 +28,8 @@ class MDatabase
     alias db this;
 
     ///
-    this(string path, int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+    this(string path,
+         int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
          size_t queryBufferInitReserve=512)
     {
         db = Database(path, flags);
@@ -39,14 +40,14 @@ class MDatabase
     auto select(T)() @property
     {
         buf.clear();
-        return Select!T(&db, &buf);
+        return Select!(T, typeof(buf))(&db, &buf);
     }
 
     ///
     auto count(T)() @property
     {
         buf.clear();
-        return Count!T(&db, &buf);
+        return Count!(T, typeof(buf))(&db, &buf);
     }
 
     ///
@@ -113,7 +114,7 @@ class MDatabase
     auto del(T)()
     {
         buf.clear();
-        return Delete!T(&db, &buf);
+        return Delete!(T, typeof(buf))(&db, &buf);
     }
 
     ///

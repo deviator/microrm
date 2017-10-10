@@ -13,7 +13,7 @@ debug (microrm) import std.stdio : stderr;
 
 enum BASEQUERYLENGTH = 512;
 
-struct Select(T)
+struct Select(T, BUF)
 {
     import std.range : InputRange;
 
@@ -77,7 +77,7 @@ unittest
     import std.array : Appender;
     Appender!(char[]) buf;
 
-    auto test = Select!Foo(null, &buf);
+    auto test = Select!(Foo, typeof(buf))(null, &buf);
     test.where("text =", "privet").and("ts >", 123);
     assert (test.query.data == "SELECT * FROM Foo WHERE text = 'privet' AND ts > '123'");
 }
@@ -226,7 +226,7 @@ unittest
                 "(?,?,?,?,"~"?,?,?);");
 }
 
-struct Delete(T)
+struct Delete(T, BUF)
 {
     mixin baseQueryData!("DELETE FROM %s");
     mixin whereCondition;
@@ -254,12 +254,12 @@ unittest
     import std.array : Appender;
     Appender!(char[]) buf;
 
-    auto test = Delete!Foo(null, &buf);
+    auto test = Delete!(Foo, typeof(buf))(null, &buf);
     test.where("text =", "privet").and("ts >", 123);
     assert (test.query.data == "DELETE FROM Foo WHERE text = 'privet' AND ts > '123'");
 }
 
-struct Count(T)
+struct Count(T, BUF)
 {
     mixin baseQueryData!("SELECT Count(*) FROM %s");
     mixin whereCondition;
@@ -285,7 +285,7 @@ unittest
     import std.array : Appender;
     Appender!(char[]) buf;
 
-    auto test = Count!Foo(null, &buf);
+    auto test = Count!(Foo, typeof(buf))(null, &buf);
     test.where("text =", "privet").and("ts >", 123);
     assert (test.query.data == "SELECT Count(*) FROM Foo WHERE text = 'privet' AND ts > '123'");
 }
