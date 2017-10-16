@@ -39,7 +39,7 @@ string[] fieldToCol(string name, T)(string prefix="")
             param = NOTNULL;
         }
         else static if (isSomeString!T) type = "TEXT";
-        else static if (isDynamicArray!T) type = "BLOB";
+        else static if (isArray!T) type = "BLOB";
         else static assert(0, "unsupported type: " ~ T.stringof);
 
         return [format("'%s%s' %s%s", prefix, name, type, param)];

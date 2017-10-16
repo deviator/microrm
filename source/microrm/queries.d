@@ -52,9 +52,25 @@ struct Select(T, BUF)
             static string rr()
             {
                 string[] res;
+                res ~= "import std.traits;";
                 foreach (i, a; fieldNames!("", T)())
-                    res ~= format("ret.%1$s = e[%2$d].as!(typeof(ret.%1$s));",
-                                    a[1..$-1], i);
+                {
+                    res ~= `{`;
+                    res ~= q{alias ET = typeof(ret.%s);}.format(a[1..$-1]);
+                    res ~= q{static if (!isStaticArray!ET)};
+                    res ~= format(q{ret.%1$s = e[%2$d].as!ET;}, a[1..$-1], i);
+                    res ~= q{else};
+                    res ~= `
+                        {
+                            import std.algorithm : min;
+                            auto ubval = e[%2$d].as!(ubyte[]);
+                            auto etval = cast(typeof(ET.init[]))ubval;
+                            auto ln = min(ret.%1$s.length, etval.length);
+                            ret.%1$s[0..ln] = etval[0..ln];
+                        }
+                        `.format(a[1..$-1], i);
+                    res ~= `}`;
+                }
                 return res.join("\n");
             }
             mixin(rr());
