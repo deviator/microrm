@@ -242,3 +242,21 @@ unittest
     db.del!Settings.where(`"limits.volt.max" < `, 10).run;
     assert(db.count!Settings.run == 2);
 }
+
+unittest
+{
+    struct Settings
+    {
+        ulong id;
+        int[5] data;
+    }
+
+    auto db = new MDatabase(":memory:");
+    db.run(buildSchema!Settings);
+
+    db.insert(Settings(0, [1,2,3,4,5]));
+
+    assert(db.count!Settings.run == 1);
+    auto s = db.select!Settings.run.front;
+    assert(s.data == [1,2,3,4,5]);
+}
