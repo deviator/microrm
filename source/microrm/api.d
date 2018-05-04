@@ -24,8 +24,6 @@ class MDatabase
 
     ///
     Database db;
-    ///
-    alias db this;
 
     ///
     this(string path,
@@ -35,6 +33,11 @@ class MDatabase
         db = Database(path, flags);
         buf.reserve(queryBufferInitReserve);
     }
+
+    void run(string script, bool delegate(ResultRange) dg = null)
+    { db.run(script, dg); }
+
+    void close() { db.close(); }
 
     ///
     auto select(T)() @property
@@ -164,7 +167,14 @@ unittest
         string text;
     }
 
-    auto db = new MDatabase(":memory:");
+    import std.experimental.allocator;
+    import std.experimental.allocator.mallocator;
+    import std.experimental.allocator.building_blocks.scoped_allocator;
+
+    MDatabase db;
+    ScopedAllocator!Mallocator scalloc;
+    db = scalloc.make!MDatabase(":memory:");
+    scope (exit) db.close();
     db.run(buildSchema!One);
 
     assert(db.count!One.run == 0);
@@ -194,6 +204,7 @@ unittest
     }
 
     auto db = new MDatabase(":memory:");
+    scope (exit) db.close();
     db.run(buildSchema!One);
 
     assert(db.count!One.run == 0);
@@ -227,6 +238,7 @@ unittest
     }
 
     auto db = new MDatabase(":memory:");
+    scope (exit) db.close();
     db.run(buildSchema!Settings);
     assert(db.count!Settings.run == 0);
     db.insertOrReplace(Settings(10, Limits(Limit(0,12), Limit(-10, 10))));
@@ -252,6 +264,7 @@ unittest
     }
 
     auto db = new MDatabase(":memory:");
+    scope (exit) db.close();
     db.run(buildSchema!Settings);
 
     db.insert(Settings(0, [1,2,3,4,5]));

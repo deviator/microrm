@@ -33,7 +33,7 @@ struct Select(T, BUF)
     ref ascOrderBy(string[] fields...) { return orderBy(fields, "ASC"); }
     ref descOrderBy(string[] fields...) { return orderBy(fields, "DESC"); }
 
-    InputRange!T run() @property
+    auto run() @property
     {
         import std.range : inputRangeObject;
         import std.algorithm : map;
@@ -77,7 +77,7 @@ struct Select(T, BUF)
             return ret;
         }
 
-        return inputRangeObject(result.map!qconv);
+        return result.map!qconv;
     }
 }
 
