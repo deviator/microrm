@@ -2,8 +2,10 @@
 
 1. use visual studio command prompt
 
-        dumpbin /exports win32\sqlite3.dll > sqlite3.x86.def
-        dumpbin /exports win64\sqlite3.dll > sqlite3.x64.def
+        cd win32
+        dumpbin /exports sqlite3.dll > sqlite3.def
+        cd ..\win64
+        dumpbin /exports sqlite3.dll > sqlite3.def
 
 1. edit `sqlite3.ARCH.def` and take only names of functions and add `EXPORTS` to first line
 
@@ -17,5 +19,7 @@
 
 1. in vs command prompt 
 
-        lib /def:sqlite3.x86.def /OUT:win32\sqlite3.lib /MACHINE:x86
-        lib /def:sqlite3.x64.def /OUT:win64\sqlite3.lib /MACHINE:x64
+        cd win32
+        lib /def:sqlite3.def /OUT:sqlite3.lib /MACHINE:x86
+        cd ..\win64
+        lib /def:sqlite3.def /OUT:sqlite3.lib /MACHINE:x64
