@@ -21,5 +21,5 @@ configuration "with-lib" {
 configuration "wintest" {
     subConfiguration "d2sqlite3" "without-lib"
     sourceFiles "lib/win64/sqlite3.lib" platform="windows-x86_64"
-    sourceFiles "lib/win32/sqlite3.lib" platform="windows-x86"
+    copyFiles "lib/win64/sqlite3.dll" platform="windows-x86_64"
 }
