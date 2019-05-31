@@ -34,8 +34,8 @@ class MDatabase
         buf.reserve(queryBufferInitReserve);
     }
 
-    void run(string script, bool delegate(ResultRange) dg = null)
-    { db.run(script, dg); }
+    void run(string sql, scope bool delegate(ResultRange) dg = null)
+    { db.run(sql, dg); }
 
     void close() { db.close(); }
 

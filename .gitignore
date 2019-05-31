@@ -5,6 +5,7 @@ __dummy.html
 *.obj
 __test__*__
 libmicrorm.a
+dub.selections.json
 microrm-test-*
 example/example
 example/test.db
