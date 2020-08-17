@@ -33,7 +33,8 @@ auto cts() @property
 
 void main()
 {
-    auto db = new MDatabase("test.db");
+    scope db = new MDatabase("test.db");
+
     db.run(schema);
 
     writeln("Foo count: ", db.count!Foo.run);
