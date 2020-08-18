@@ -1,3 +1,4 @@
 name "example"
 debugVersions "microrm"
 dependency "microrm" path=".."
+subConfiguration "microrm" "all-included" platform="windows"
